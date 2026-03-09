@@ -1,13 +1,24 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getSheetById } from "@/lib/storage";
 import { isSheetChecked, saveResult, type CheckResult } from "@/lib/storage";
 import { usePoints } from "@/contexts/PointsContext";
 import { PrintSheet } from "@/lib/problems";
+import { decodeSheet } from "@/lib/sheetCodec";
 
 export default function CheckPage() {
+  return (
+    <Suspense fallback={<div className="py-8 text-center text-gray-400">よみこみちゅう...</div>}>
+      <CheckPageContent />
+    </Suspense>
+  );
+}
+
+function CheckPageContent() {
+  const searchParams = useSearchParams();
   const [sheetId, setSheetId] = useState("");
   const [sheet, setSheet] = useState<PrintSheet | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -17,6 +28,24 @@ export default function CheckPage() {
   const [ocrError, setOcrError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addPoints } = usePoints();
+
+  // Load sheet from URL parameter (QR code scan from another device)
+  useEffect(() => {
+    const encodedData = searchParams.get("d");
+    if (encodedData && !sheet) {
+      const decoded = decodeSheet(encodedData);
+      if (decoded) {
+        if (isSheetChecked(decoded.id)) {
+          setError("このプリントはすでにチェックずみです");
+        } else {
+          setSheet(decoded);
+          setSheetId(decoded.id);
+        }
+      } else {
+        setError("QRコードのデータがよみとれませんでした");
+      }
+    }
+  }, [searchParams, sheet]);
 
   const handleFindSheet = () => {
     setError("");

@@ -3,18 +3,21 @@
 import { useEffect, useRef } from "react";
 import QRCode from "qrcode";
 import { PrintSheet } from "@/lib/problems";
+import { encodeSheet } from "@/lib/sheetCodec";
 
 export function PrintPreview({ sheet }: { sheet: PrintSheet }) {
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (qrRef.current) {
-      QRCode.toCanvas(qrRef.current, sheet.id, {
+      const encoded = encodeSheet(sheet);
+      const url = `${window.location.origin}/check?d=${encoded}`;
+      QRCode.toCanvas(qrRef.current, url, {
         width: 100,
         margin: 1,
       });
     }
-  }, [sheet.id]);
+  }, [sheet]);
 
   const typeLabel =
     sheet.type === "kuku"
