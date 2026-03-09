@@ -33,6 +33,93 @@ export default function CheckPage() {
     setAnswers({});
   };
 
+  // OCR from initial screen - finds sheet ID and answers from photo
+  const handleOcrCaptureWithSheetLookup = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setOcrLoading(true);
+    setOcrError("");
+    setError("");
+
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64 }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setOcrError(data.error || "OCRにしっぱいしました");
+        return;
+      }
+
+      const { text } = await res.json();
+
+      // Try to find sheet ID in OCR text (format: YYYYMMDD-XXXXXX)
+      const sheetIdMatch = text.match(/(\d{8}-[A-Z0-9]{6})/);
+      if (!sheetIdMatch) {
+        setOcrError(
+          "シートIDがよみとれませんでした。シートIDをてにゅうりょくしてください。"
+        );
+        return;
+      }
+
+      const foundSheetId = sheetIdMatch[1];
+      const foundSheet = getSheetById(foundSheetId);
+      if (!foundSheet) {
+        setOcrError(
+          `シートID「${foundSheetId}」のプリントがみつかりません`
+        );
+        return;
+      }
+
+      if (isSheetChecked(foundSheetId)) {
+        setOcrError("このプリントはすでにチェックずみです");
+        return;
+      }
+
+      // Extract answer numbers from OCR text
+      // Remove the sheet ID from text first to avoid confusion
+      const textWithoutId = text.replace(sheetIdMatch[0], "");
+      const numbers = textWithoutId.match(/\d+/g) || [];
+
+      // For kuku/tashizan, map extracted numbers to answers
+      const newAnswers: Record<number, string> = {};
+      if (foundSheet.type === "kuku" || foundSheet.type === "tashizan") {
+        // Filter out numbers that are part of the problems themselves
+        const problemNumbers = new Set<string>();
+        foundSheet.problems.forEach((p) => {
+          const nums = p.question.match(/\d+/g) || [];
+          nums.forEach((n) => problemNumbers.add(n));
+        });
+
+        const answerNumbers = numbers.filter(
+          (n: string) => !problemNumbers.has(n)
+        );
+        foundSheet.problems.forEach((p, idx) => {
+          if (answerNumbers[idx]) {
+            newAnswers[p.id] = answerNumbers[idx];
+          }
+        });
+      }
+
+      setSheetId(foundSheetId);
+      setSheet(foundSheet);
+      setAnswers(newAnswers);
+    } catch {
+      setOcrError("OCRにしっぱいしました。もういちどためしてください。");
+    } finally {
+      setOcrLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // OCR from answer entry form (after sheet is found)
   const handleOcrCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !sheet) return;
@@ -312,11 +399,43 @@ export default function CheckPage() {
         ← もどる
       </Link>
       <h1 className="text-2xl font-bold text-amber-800">こたえあわせ</h1>
-      <p className="text-sm text-gray-500">
-        プリントのシートIDをにゅうりょくしてください
-      </p>
+
+      {/* OCR capture - always visible on initial screen */}
+      <div className="space-y-2">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={ocrLoading}
+          className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold py-4 px-6 rounded-xl text-lg transition-colors shadow-md flex items-center justify-center gap-2"
+        >
+          <span className="text-2xl">📷</span>
+          {ocrLoading ? "よみとりちゅう..." : "しゃしんでこたえあわせ"}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleOcrCaptureWithSheetLookup}
+          className="hidden"
+        />
+        {ocrError && (
+          <p className="text-red-500 text-sm text-center">{ocrError}</p>
+        )}
+        <p className="text-xs text-gray-400 text-center">
+          プリントぜんたいを写真にとってね
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 border-t border-gray-200"></div>
+        <span className="text-xs text-gray-400">または</span>
+        <div className="flex-1 border-t border-gray-200"></div>
+      </div>
 
       <div className="space-y-4">
+        <p className="text-sm text-gray-500">
+          シートIDをにゅうりょくしてさがす
+        </p>
         <input
           type="text"
           value={sheetId}
@@ -333,16 +452,6 @@ export default function CheckPage() {
         >
           プリントをさがす
         </button>
-      </div>
-
-      <div className="bg-blue-50 rounded-xl p-4 space-y-2">
-        <p className="text-sm font-bold text-blue-800">つかいかた</p>
-        <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-          <li>プリントの右上にあるシートIDをにゅうりょく</li>
-          <li>九九・たしざん → しゃしんでこたえあわせ、またはてにゅうりょく</li>
-          <li>えいたんご → せんたくしからえらぶ</li>
-          <li>「こたえあわせする！」をおす</li>
-        </ol>
       </div>
     </div>
   );
