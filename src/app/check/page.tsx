@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { getSheetById } from "@/lib/storage";
 import { isSheetChecked, saveResult, type CheckResult } from "@/lib/storage";
@@ -13,6 +13,9 @@ export default function CheckPage() {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [result, setResult] = useState<CheckResult | null>(null);
   const [error, setError] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { addPoints } = usePoints();
 
   const handleFindSheet = () => {
@@ -30,6 +33,57 @@ export default function CheckPage() {
     setAnswers({});
   };
 
+  const handleOcrCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !sheet) return;
+
+    setOcrLoading(true);
+    setOcrError("");
+
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64 }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setOcrError(data.error || "OCRにしっぱいしました");
+        return;
+      }
+
+      const { text } = await res.json();
+      // Extract numbers from OCR text
+      const numbers = text.match(/\d+/g) || [];
+
+      // Map numbers to problems in order
+      const newAnswers: Record<number, string> = { ...answers };
+      sheet.problems.forEach((p, idx) => {
+        if (numbers[idx]) {
+          newAnswers[p.id] = numbers[idx];
+        }
+      });
+      setAnswers(newAnswers);
+    } catch {
+      setOcrError("OCRにしっぱいしました。もういちどためしてください。");
+    } finally {
+      setOcrLoading(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleCheck = () => {
     if (!sheet) return;
 
@@ -44,7 +98,7 @@ export default function CheckPage() {
     });
 
     const correctCount = resultAnswers.filter((a) => a.correct).length;
-    const pointsEarned = correctCount; // 1問正解 = 1ポイント
+    const pointsEarned = correctCount;
 
     const checkResult: CheckResult = {
       sheetId: sheet.id,
@@ -127,6 +181,16 @@ export default function CheckPage() {
 
   // Answer entry form
   if (sheet) {
+    const isEnglish = sheet.type === "english";
+    const isKukuOrTashizan =
+      sheet.type === "kuku" || sheet.type === "tashizan";
+    const typeLabel =
+      sheet.type === "kuku"
+        ? "九九"
+        : sheet.type === "tashizan"
+          ? "たしざん"
+          : "えいたんご";
+
     return (
       <div className="py-8 space-y-6">
         <Link
@@ -137,31 +201,98 @@ export default function CheckPage() {
         </Link>
         <h1 className="text-2xl font-bold text-amber-800">こたえあわせ</h1>
         <p className="text-sm text-gray-500">
-          シートID: {sheet.id} ／{" "}
-          {sheet.type === "kuku" ? "九九" : "えいたんご"}
+          シートID: {sheet.id} ／ {typeLabel}
         </p>
 
-        <div className="space-y-3">
-          {sheet.problems.map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm"
+        {/* OCR capture button for kuku/tashizan */}
+        {isKukuOrTashizan && (
+          <div className="space-y-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={ocrLoading}
+              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold py-3 px-6 rounded-xl text-lg transition-colors shadow-md flex items-center justify-center gap-2"
             >
-              <span className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700 flex-shrink-0">
-                {p.id}
-              </span>
-              <span className="flex-1 text-sm">{p.question}</span>
-              <input
-                type="text"
-                value={answers[p.id] || ""}
-                onChange={(e) =>
-                  setAnswers((prev) => ({ ...prev, [p.id]: e.target.value }))
-                }
-                className="w-32 border-2 border-gray-200 rounded-lg px-3 py-2 text-center font-bold focus:border-amber-400 focus:outline-none"
-                placeholder="こたえ"
-              />
+              <span className="text-2xl">📷</span>
+              {ocrLoading ? "よみとりちゅう..." : "しゃしんでこたえあわせ"}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleOcrCapture}
+              className="hidden"
+            />
+            {ocrError && (
+              <p className="text-red-500 text-sm text-center">{ocrError}</p>
+            )}
+            <p className="text-xs text-gray-400 text-center">
+              プリントのこたえを写真にとると、じどうでにゅうりょくされます
+            </p>
+            <div className="border-t border-gray-200 pt-3">
+              <p className="text-xs text-gray-400 text-center">
+                または、てにゅうりょく ↓
+              </p>
             </div>
-          ))}
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {sheet.problems.map((p) =>
+            isEnglish && p.choices ? (
+              <div
+                key={p.id}
+                className="bg-white p-4 rounded-xl shadow-sm space-y-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700 flex-shrink-0">
+                    {p.id}
+                  </span>
+                  <span className="flex-1 text-sm font-bold">{p.question}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {p.choices.map((choice) => (
+                    <button
+                      key={choice}
+                      onClick={() =>
+                        setAnswers((prev) => ({ ...prev, [p.id]: choice }))
+                      }
+                      className={`py-2 px-3 rounded-lg text-sm font-bold border-2 transition-colors ${
+                        answers[p.id] === choice
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-amber-300"
+                      }`}
+                    >
+                      {choice}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm"
+              >
+                <span className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-sm font-bold text-amber-700 flex-shrink-0">
+                  {p.id}
+                </span>
+                <span className="flex-1 text-sm">{p.question}</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={answers[p.id] || ""}
+                  onChange={(e) =>
+                    setAnswers((prev) => ({
+                      ...prev,
+                      [p.id]: e.target.value,
+                    }))
+                  }
+                  className="w-32 border-2 border-gray-200 rounded-lg px-3 py-2 text-center font-bold focus:border-amber-400 focus:outline-none"
+                  placeholder="こたえ"
+                />
+              </div>
+            )
+          )}
         </div>
 
         <button
@@ -208,7 +339,8 @@ export default function CheckPage() {
         <p className="text-sm font-bold text-blue-800">つかいかた</p>
         <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
           <li>プリントの右上にあるシートIDをにゅうりょく</li>
-          <li>えんぴつで書いたこたえをそのままにゅうりょく</li>
+          <li>九九・たしざん → しゃしんでこたえあわせ、またはてにゅうりょく</li>
+          <li>えいたんご → せんたくしからえらぶ</li>
           <li>「こたえあわせする！」をおす</li>
         </ol>
       </div>

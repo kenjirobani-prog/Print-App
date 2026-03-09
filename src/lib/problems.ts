@@ -1,10 +1,11 @@
-export type ProblemType = "kuku" | "english";
+export type ProblemType = "kuku" | "english" | "tashizan";
 
 export interface Problem {
   id: number;
   question: string;
   answer: string;
   type: ProblemType;
+  choices?: string[];
 }
 
 export interface PrintSheet {
@@ -56,6 +57,74 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
+function generateWrongSpellings(correct: string): string[] {
+  const wrongs: Set<string> = new Set();
+  const vowels = "aeiou";
+  const consonants = "bcdfghjklmnpqrstvwxyz";
+
+  // Swap a vowel
+  for (let i = 0; i < correct.length; i++) {
+    if (vowels.includes(correct[i])) {
+      for (const v of vowels) {
+        if (v !== correct[i]) {
+          const w = correct.slice(0, i) + v + correct.slice(i + 1);
+          if (w !== correct) wrongs.add(w);
+        }
+      }
+    }
+  }
+
+  // Swap a consonant
+  for (let i = 0; i < correct.length; i++) {
+    if (consonants.includes(correct[i])) {
+      const similar: Record<string, string[]> = {
+        b: ["d", "p"],
+        c: ["k", "s"],
+        d: ["b", "t"],
+        f: ["v", "ph"],
+        g: ["j", "k"],
+        h: [""],
+        j: ["g"],
+        k: ["c", "q"],
+        l: ["r"],
+        m: ["n"],
+        n: ["m"],
+        p: ["b"],
+        q: ["k"],
+        r: ["l"],
+        s: ["c", "z"],
+        t: ["d"],
+        v: ["f", "b"],
+        w: ["v"],
+        x: ["ks"],
+        y: ["i"],
+        z: ["s"],
+      };
+      const sims = similar[correct[i]] || [];
+      for (const s of sims) {
+        const w = correct.slice(0, i) + s + correct.slice(i + 1);
+        if (w !== correct && w.length > 0) wrongs.add(w);
+      }
+    }
+  }
+
+  // Double a letter
+  if (correct.length >= 3) {
+    const idx = Math.floor(correct.length / 2);
+    const w = correct.slice(0, idx) + correct[idx] + correct.slice(idx);
+    if (w !== correct) wrongs.add(w);
+  }
+
+  // Remove a letter
+  if (correct.length >= 3) {
+    const idx = Math.floor(correct.length / 2);
+    const w = correct.slice(0, idx) + correct.slice(idx + 1);
+    if (w !== correct) wrongs.add(w);
+  }
+
+  return shuffleArray([...wrongs]);
+}
+
 export function generateKukuProblems(count: number = 10): Problem[] {
   const problems: Problem[] = [];
   const pairs: [number, number][] = [];
@@ -71,7 +140,7 @@ export function generateKukuProblems(count: number = 10): Problem[] {
   selected.forEach(([a, b], index) => {
     problems.push({
       id: index + 1,
-      question: `${a} × ${b} = `,
+      question: `${a} × ${b} =`,
       answer: String(a * b),
       type: "kuku",
     });
@@ -80,15 +149,49 @@ export function generateKukuProblems(count: number = 10): Problem[] {
   return problems;
 }
 
+export function generateTashizanProblems(count: number = 10): Problem[] {
+  const problems: Problem[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // 4桁の足し算: 1000〜9999 の数同士
+    const a = Math.floor(Math.random() * 9000) + 1000;
+    const b = Math.floor(Math.random() * 9000) + 1000;
+    problems.push({
+      id: i + 1,
+      question: `${a} + ${b} =`,
+      answer: String(a + b),
+      type: "tashizan",
+    });
+  }
+
+  return problems;
+}
+
 export function generateEnglishProblems(count: number = 10): Problem[] {
   const selected = shuffleArray(ENGLISH_WORDS).slice(0, count);
 
-  return selected.map((item, index) => ({
-    id: index + 1,
-    question: `「${item.hint}」をえいごで書こう → `,
-    answer: item.word,
-    type: "english" as ProblemType,
-  }));
+  return selected.map((item, index) => {
+    const wrongOptions = generateWrongSpellings(item.word).slice(0, 3);
+    // Ensure we have exactly 3 wrong options
+    while (wrongOptions.length < 3) {
+      // Pick a random other word as fallback
+      const other = ENGLISH_WORDS.find(
+        (w) => w.word !== item.word && !wrongOptions.includes(w.word)
+      );
+      if (other) wrongOptions.push(other.word);
+      else break;
+    }
+
+    const choices = shuffleArray([item.word, ...wrongOptions.slice(0, 3)]);
+
+    return {
+      id: index + 1,
+      question: `「${item.hint}」をえいごでえらぼう`,
+      answer: item.word,
+      type: "english" as ProblemType,
+      choices,
+    };
+  });
 }
 
 export function generateSheetId(): string {
@@ -105,7 +208,9 @@ export function createPrintSheet(
   const problems =
     type === "kuku"
       ? generateKukuProblems(count)
-      : generateEnglishProblems(count);
+      : type === "tashizan"
+        ? generateTashizanProblems(count)
+        : generateEnglishProblems(count);
 
   return {
     id: generateSheetId(),

@@ -55,11 +55,16 @@ export default function PrintPage() {
           <label className="block text-sm font-bold text-gray-700 mb-2">
             もんだいのしゅるい
           </label>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <TypeButton
               selected={type === "kuku"}
               onClick={() => setType("kuku")}
               label="九九（かけざん）"
+            />
+            <TypeButton
+              selected={type === "tashizan"}
+              onClick={() => setType("tashizan")}
+              label="たしざん（筆算）"
             />
             <TypeButton
               selected={type === "english"}
