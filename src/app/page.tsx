@@ -5,8 +5,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <div className="py-8 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-amber-800">湊太郎まなびプリント</h1>
+      <div className="text-center">
         <p className="text-gray-600">もんだいをといて、ポイントをためよう！</p>
       </div>
 
