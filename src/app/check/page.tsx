@@ -61,19 +61,21 @@ export default function CheckPage() {
       const { text } = await res.json();
 
       // Try to find sheet ID in OCR text (format: YYYYMMDD-XXXXXX)
-      const sheetIdMatch = text.match(/(\d{8}-[A-Z0-9]{6})/);
+      // OCR may misread hyphens as different dash characters or add spaces
+      const normalizedText = text.replace(/[–—―ー]/g, "-").replace(/\s+/g, " ");
+      const sheetIdMatch = normalizedText.match(/(\d{8})\s*[-]\s*([A-Z0-9]{6})/);
       if (!sheetIdMatch) {
         setOcrError(
-          "シートIDがよみとれませんでした。シートIDをてにゅうりょくしてください。"
+          `シートIDがよみとれませんでした。てにゅうりょくしてください。\n（OCR: ${text.substring(0, 100)}）`
         );
         return;
       }
 
-      const foundSheetId = sheetIdMatch[1];
+      const foundSheetId = `${sheetIdMatch[1]}-${sheetIdMatch[2]}`;
       const foundSheet = getSheetById(foundSheetId);
       if (!foundSheet) {
         setOcrError(
-          `シートID「${foundSheetId}」のプリントがみつかりません`
+          `シートID「${foundSheetId}」のプリントがみつかりません。\nプリントをさきにいんさつしてから、しゃしんをとってね。`
         );
         return;
       }
