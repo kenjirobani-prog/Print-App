@@ -8,7 +8,7 @@ export function Header() {
     <header className="no-print bg-amber-500 text-white shadow-md">
       <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-xl font-bold tracking-tight">
-          まなびプリント
+          湊太郎まなびプリント
         </Link>
         <PointsBadge />
       </div>

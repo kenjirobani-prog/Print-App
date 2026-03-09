@@ -29,7 +29,7 @@ export default function PointsPage() {
         <p className="text-sm opacity-80">いまのポイント</p>
         <p className="text-5xl font-bold my-2">{points}</p>
         <p className="text-sm opacity-80">ポイント</p>
-        {points >= 100 && (
+        {points > 0 && (
           <Link
             href="/exchange"
             className="inline-block mt-3 bg-white text-amber-600 font-bold py-2 px-6 rounded-full text-sm hover:bg-amber-50 transition-colors"
@@ -52,8 +52,8 @@ export default function PointsPage() {
           }
         />
         <StatCard
-          label="つぎのひきかえまで"
-          value={points >= 100 ? "OK!" : `あと${100 - (points % 100)}pt`}
+          label="つかえるきんがく"
+          value={`${points}円ぶん`}
         />
       </div>
 

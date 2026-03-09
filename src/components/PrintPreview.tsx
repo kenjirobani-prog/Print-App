@@ -28,7 +28,7 @@ export function PrintPreview({ sheet }: { sheet: PrintSheet }) {
       {/* Header */}
       <div className="flex justify-between items-start border-b-2 border-gray-300 pb-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">まなびプリント</h1>
+          <h1 className="text-2xl font-bold text-gray-800">湊太郎まなびプリント</h1>
           <p className="text-sm text-gray-500 mt-1">
             {typeLabel} ／ {sheet.problems.length}もん
           </p>

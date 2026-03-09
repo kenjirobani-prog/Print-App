@@ -4,8 +4,8 @@ import { PointsProvider } from "@/contexts/PointsContext";
 import { Header } from "@/components/Header";
 
 export const metadata: Metadata = {
-  title: "まなびプリント",
-  description: "楽しく学べるプリント学習アプリ",
+  title: "湊太郎まなびプリント",
+  description: "湊太郎のための楽しく学べるプリント学習アプリ",
 };
 
 export default function RootLayout({
