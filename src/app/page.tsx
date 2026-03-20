@@ -1,19 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 
 export default function Home() {
   return (
     <div className="py-8 space-y-6">
       <div className="w-full rounded-xl overflow-hidden">
-        <Image
-          src="/TOPバナー.png"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/TOP${encodeURIComponent("バナー")}.png`}
           alt="トップバナー"
-          width={800}
-          height={400}
           className="w-full h-auto"
-          priority
         />
       </div>
 
