@@ -8,7 +8,7 @@ export default function Home() {
       <div className="w-full rounded-xl overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/TOP${encodeURIComponent("バナー")}.png`}
+          src="/top-banner.png"
           alt="トップバナー"
           className="w-full h-auto"
         />
