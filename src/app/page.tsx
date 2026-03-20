@@ -1,12 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
     <div className="py-8 space-y-6">
-      <div className="text-center">
-        <p className="text-gray-600">もんだいをといて、ポイントをためよう！</p>
+      <div className="w-full rounded-xl overflow-hidden">
+        <Image
+          src="/TOPバナー.png"
+          alt="トップバナー"
+          width={800}
+          height={400}
+          className="w-full h-auto"
+          priority
+        />
       </div>
 
       <div className="grid gap-4">
