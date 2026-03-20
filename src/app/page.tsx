@@ -5,14 +5,6 @@ import Link from "next/link";
 export default function Home() {
   return (
     <div className="py-8 space-y-6">
-      <div className="w-full rounded-xl overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/top-banner.png"
-          alt="トップバナー"
-          className="w-full h-auto"
-        />
-      </div>
 
       <div className="grid gap-4">
         <MenuCard

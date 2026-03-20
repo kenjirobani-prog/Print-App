@@ -9,7 +9,7 @@ export function Header() {
     <header className="no-print shadow-md">
       <Link href="/" className="block">
         <Image
-          src="/banner.png"
+          src="/top-banner.png"
           alt="まなびプリント"
           width={1200}
           height={200}
